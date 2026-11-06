@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AeroSaviour Command Dashboard</title>
+<style>
+:root{--bg:#eef1f5;--fg:#14202e;--card:#fff;--mut:#5a6b7d;--line:#d5dce5;--acc:#e8590c;--map:#e4ebe2;--ok:#2f9e44;--bad:#e03131;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d131a;--fg:#e6edf5;--card:#16202a;--mut:#9aabbd;--line:#2a3846;--map:#18241d}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line);align-items:center}
+.tag,.pill,.bd{font-size:11px;padding:2px 8px;border-radius:99px;color:#fff;background:var(--acc);font-weight:600}
+.bd{margin-left:4px}.g{background:var(--ok)}.r{background:var(--bad)}.o{background:#f08c00}
+main{display:grid;grid-template-columns:270px 1fr 340px;gap:12px;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+h3{margin:0 0 8px;font-size:14px}.mut{color:var(--mut);font-size:12px}
+table{width:100%;border-collapse:collapse}td{padding:3px 0;font-size:13px;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-weight:600}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+button,select{font:inherit;font-size:12px;padding:5px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--acc)}button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+svg{width:100%;height:auto;display:block;border-radius:8px;background:var(--map)}
+.it{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px;font-size:13px}.it.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+#lg{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--mut)}
+#log{max-height:240px;overflow:auto;font-size:12px}#log div{padding:4px 0;border-bottom:1px solid var(--line)}
+.pulse{animation:pl 1s infinite}@keyframes pl{0%{r:10;opacity:.9}100%{r:55;opacity:0}}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+</style></head><body>
+<header><div><b>ResQ-Sky</b> Command Dashboard <span class="tag">SIMULATED DATA</span></div><div id="bds"></div></header>
+<main>
+<section>
+<div class="card"><h3>Drone SKY-01</h3><table id="ds"></table><div class="bar"><i id="bf"></i></div></div>
+<div class="card"><h3>Mission controls</h3><div class="btns">
+<button class="p" data-a="run" id="brun">Start search</button><button data-a="rtb">Return to base</button><button data-a="swap">Swap battery</button>
+<button data-a="gps">Toggle GPS loss</button><button data-a="link">Toggle link loss</button><button data-a="rst">Reset</button>
+<select id="spd"><option value="1">Speed 1×</option><option value="2">2×</option><option value="4">4×</option></select></div></div>
+<div class="card"><h3>Sensors and systems</h3><table id="sn"></table></div>
+</section>
+<section>
+<div class="card"><h3>Live map: search area</h3>
+<svg id="map" viewBox="0 0 640 420"><defs><pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="currentColor" stroke-opacity=".12"/></pattern></defs>
+<rect width="640" height="420" fill="url(#gr)" style="color:var(--fg)"/>
+<rect x="70" y="45" width="540" height="330" fill="none" stroke="#e8590c" stroke-dasharray="6 5"/>
+<polyline id="pp" fill="none" stroke="#888" stroke-opacity=".5" stroke-dasharray="3 4"/>
+<polyline id="tr" fill="none" stroke="#1c7ed6" stroke-width="2.5"/>
+<g transform="translate(40,380)"><rect x="-14" y="-14" width="28" height="28" rx="5" fill="#2f9e44"/><text y="5" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">H</text></g>
+<g id="mk"></g>
+<g id="dr"><circle r="55" fill="#1c7ed6" fill-opacity=".08" stroke="#1c7ed6" stroke-dasharray="4 3"/><path d="M-12-12L12 12M12-12L-12 12" stroke="#222" stroke-width="3"/><circle r="5" fill="#1c7ed6"/><circle cx="-12" cy="-12" r="5" fill="#fff" stroke="#222"/><circle cx="12" cy="-12" r="5" fill="#fff" stroke="#222"/><circle cx="-12" cy="12" r="5" fill="#fff" stroke="#222"/><circle cx="12" cy="12" r="5" fill="#fff" stroke="#222"/></g>
+</svg>
+<div id="lg"><span>🔵 Drone and flight path</span><span style="color:#e03131">● Critical</span><span style="color:#f08c00">● Injured</span><span style="color:#2f9e44">● Stable</span><span>▲ Hazard</span><span>Green H = base</span></div></div>
+<div class="card"><h3>Commander summary</h3><div id="sm"></div></div>
+</section>
+<section>
+<div class="card"><h3>Detected people (ranked by priority)</h3><div id="vl"></div></div>
+<div class="card"><h3>Hazards spotted</h3><div id="hl"></div></div>
+<div class="card"><h3>Alert log (command centre and 112)</h3><div id="log"></div></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s),B={x:40,y:380},C=["#2f9e44","#f08c00","#e03131"],N=["Stable","Injured","Critical"],p=x=>(x*100|0)+"%";
+const V=[{id:"V1",x:210,y:125,sev:2,c:"Trapped under debris, no movement",cf:.93,f:[.9,.82,.96]},{id:"V2",x:445,y:195,sev:1,c:"Injured leg, calling for help",cf:.88,f:[.85,.9,.8]},{id:"V3",x:125,y:265,sev:1,c:"Partly hidden under vegetation",cf:.64,f:[.5,.55,.8]},{id:"V4",x:530,y:335,sev:0,c:"Conscious, able to move",cf:.9,f:[.88,.92,.85]}];
+const Z=[{id:"H1",x:300,y:100,t:"Fire",n:"Active fire near a collapsed wall"},{id:"H2",x:480,y:285,t:"Flood water",n:"Rising water blocking the road"},{id:"H3",x:165,y:195,t:"Collapse risk",n:"Leaning wall, unstable structure"}];
+const wp=[];for(let i=0;i<5;i++){const y=70+i*70,a=i%2?590:90,b=i%2?90:590;wp.push({x:a,y},{x:b,y})}
+let d,run,gpsX,linkX,mult,vs,hs,q,logs,sel,kits,pos;
+function init(){d={x:B.x,y:B.y,bat:100,mode:"Ready",wi:0,tr:[[B.x,B.y]]};run=false;gpsX=false;linkX=false;mult=1;sel=null;kits=1;q=[];logs=[];vs={};hs={};V.forEach(v=>vs[v.id]={seen:false,st:""});Z.forEach(h=>hs[h.id]={seen:false,horn:0});$("#brun").textContent="Start search";$("#spd").value="1";lg("Dashboard ready. Press Start search.");all()}
+const gps=(x,y)=>(20+(210-y)*5e-5).toFixed(5)+"° N, "+(78+(x-320)*5e-5).toFixed(5)+"° E";
+const tm=()=>new Date().toLocaleTimeString([], {hour12:false});
+function lg(t){logs.unshift(tm()+"  "+t);logs=logs.slice(0,60);$("#log").innerHTML=logs.map(x=>"<div>"+x+"</div>").join("")}
+function alertSend(v){const m="ALERT "+v.id+" ("+N[v.sev]+"): "+v.c+", "+p(v.cf)+" confidence, "+gps(v.x,v.y)+", snapshot attached";
+if(linkX){q.push(m);lg("📥 Link lost: alert for "+v.id+" queued, will send when link returns");vs[v.id].st="Alert queued (link lost)"}
+else{lg("📤 To Command Centre: "+m);lg("📤 To 112: "+m);vs[v.id].st="Alert sent, awaiting confirmation"}}
+function step(){if(!run||!["Searching","Returning"].includes(d.mode))return;
+for(let k=0;k<mult;k++){const t=d.mode==="Returning"?B:wp[d.wi],dx=t.x-d.x,dy=t.y-d.y,ds=Math.hypot(dx,dy);
+if(ds<3){if(d.mode==="Returning"){d.mode="Landed: swap battery";run=false;$("#brun").textContent="Start search";lg("Drone landed at base.");break}
+d.wi++;if(d.wi>=wp.length){d.mode="Returning";lg("Search area fully covered. Returning to base.")}}
+else{d.x+=dx/ds*2;d.y+=dy/ds*2;d.tr.push([d.x|0,d.y|0]);if(d.tr.length>900)d.tr.shift()}
+d.bat-=.03;if(d.bat<25&&d.mode==="Searching"){d.mode="Returning";lg("⚠ Battery below 25%: automatic return to base")}
+V.forEach(v=>{if(!vs[v.id].seen&&Math.hypot(v.x-d.x,v.y-d.y)<55){vs[v.id].seen=true;lg("🧍 Person detected: "+v.id+" ("+p(v.cf)+" confidence, fused thermal + RGB + LiDAR)");if(v.cf>=.85)alertSend(v);else vs[v.id].st="Low confidence: needs human review";all()}});
+Z.forEach(h=>{if(!hs[h.id].seen&&Math.hypot(h.x-d.x,h.y-d.y)<55){hs[h.id].seen=true;lg("🔥 Hazard spotted: "+h.t+" at "+gps(h.x,h.y));all()}})}
+head()}
+function head(){const l=linkX?["LINK LOST: autonomous","r"]:["Mesh link OK","g"],g=gpsX?["GPS DENIED: using VIO/SLAM","o"]:["GPS fix OK","g"];
+$("#bds").innerHTML='<span class="bd '+l[1]+'">'+l[0]+'</span><span class="bd '+g[1]+'">'+g[0]+'</span><span class="bd '+(d.bat<25?"r":"g")+'">Battery '+Math.max(0,d.bat|0)+"%</span>";
+const fl=run&&["Searching","Returning"].includes(d.mode);
+$("#ds").innerHTML=[["Mode",d.mode],["Battery",Math.max(0,d.bat).toFixed(0)+"%"],["Est. flight time left",(Math.max(0,d.bat)*.3|0)+" min"],["Position",gps(d.x,d.y)],["Position source",gpsX?"VIO/SLAM (drift ±"+((d.tr.length/40)|0)+" m)":"GPS + VIO"],["Altitude / speed",(fl?"35 m / "+6*mult+" m/s":"0 m / 0 m/s")],["Area covered",Math.min(100,(d.wi/wp.length*100)|0)+"%"],["Link",linkX?"Lost (storing data)":"Mesh + cellular"]].map(r=>"<tr><td>"+r[0]+"</td><td>"+r[1]+"</td></tr>").join("");
+$("#bf").style.width=Math.max(0,d.bat)+"%";$("#bf").style.background=d.bat<25?"var(--bad)":"var(--ok)";
+$("#sn").innerHTML=[["Thermal camera","OK"],["RGB zoom camera + gimbal","OK"],["LiDAR 360°","OK"],["Visual odometry",gpsX?"ACTIVE":"Standby"],["Edge AI (on board)","Running"],["Alert module",q.length?q.length+" queued":"Ready"],["Hazard horn","Ready"],["Payload bay",kits?"1 kit loaded":"Empty"]].map(r=>"<tr><td>"+r[0]+"</td><td>"+r[1]+"</td></tr>").join("");
+$("#dr").setAttribute("transform","translate("+d.x+","+d.y+")");$("#tr").setAttribute("points",d.tr.join(" "))}
+function all(){mk();rl();sum()}
+function mk(){let s="";V.forEach(v=>{if(!vs[v.id].seen)return;s+='<g data-s="'+v.id+'" style="cursor:pointer"><circle cx="'+v.x+'" cy="'+v.y+'" r="'+(sel===v.id?13:10)+'" fill="'+C[v.sev]+'" stroke="#fff" stroke-width="2"/><path d="M'+(v.x-5)+" "+v.y+"H"+(v.x+5)+"M"+v.x+" "+(v.y-5)+"V"+(v.y+5)+'" stroke="#fff" stroke-width="2.5"/><text x="'+(v.x+14)+'" y="'+(v.y+4)+'" font-size="12" font-weight="700" fill="currentColor">'+v.id+"</text></g>"});
+Z.forEach(h=>{if(!hs[h.id].seen)return;const hn=Date.now()-hs[h.id].horn<4000;s+='<g data-h="'+h.id+'" style="cursor:pointer">'+(hn?'<circle class="pulse" cx="'+h.x+'" cy="'+h.y+'" r="10" fill="none" stroke="#f08c00" stroke-width="3"/>':"")+'<path d="M'+h.x+" "+(h.y-12)+"L"+(h.x+12)+" "+(h.y+10)+"L"+(h.x-12)+" "+(h.y+10)+'Z" fill="#fab005" stroke="#333" stroke-width="2"/><text x="'+h.x+'" y="'+(h.y+7)+'" text-anchor="middle" font-size="11" font-weight="700">!</text><text x="'+(h.x+15)+'" y="'+(h.y+4)+'" font-size="11" fill="currentColor">'+h.t+"</text></g>"});
+$("#mk").innerHTML=s}
+function rl(){const L=V.filter(v=>vs[v.id].seen).sort((a,b)=>b.sev-a.sev||b.cf-a.cf);
+$("#vl").innerHTML=L.length?L.map(v=>{const s=vs[v.id];return '<div class="it '+(sel===v.id?"sel":"")+'" data-s="'+v.id+'"><b>'+v.id+'</b> <span class="pill" style="background:'+C[v.sev]+'">'+N[v.sev]+'</span> <span class="mut">'+p(v.cf)+' confidence</span><div>'+v.c+'</div><div class="mut">Thermal '+p(v.f[0])+" · RGB "+p(v.f[1])+" · LiDAR "+p(v.f[2])+"</div><div class='mut'>"+gps(v.x,v.y)+"</div><div><b>"+s.st+'</b></div><div class="btns"><button data-a="ok" data-i="'+v.id+'">Confirm</button><button data-a="no" data-i="'+v.id+'">Cancel (false alarm)</button><button data-a="talk" data-i="'+v.id+'">Talk</button><button data-a="drop" data-i="'+v.id+'">Drop kit</button></div></div>'}).join(""):'<div class="mut">No people detected yet. Start the search.</div>';
+const H=Z.filter(h=>hs[h.id].seen);$("#hl").innerHTML=H.length?H.map(h=>'<div class="it '+(sel===h.id?"sel":"")+'" data-h="'+h.id+'"><b>'+h.id+": "+h.t+"</b><div>"+h.n+"</div><div class='mut'>"+gps(h.x,h.y)+'</div><div class="btns"><button data-a="horn" data-i="'+h.id+'">Sound alert horn</button></div></div>').join(""):'<div class="mut">No hazards spotted yet.</div>'}
+function sum(){const L=V.filter(v=>vs[v.id].seen&&!/Cancel/.test(vs[v.id].st)).sort((a,b)=>b.sev-a.sev||b.cf-a.cf),t=L[0];
+$("#sm").innerHTML="<div>People detected: <b>"+V.filter(v=>vs[v.id].seen).length+"/"+V.length+"</b> · Hazards: <b>"+Z.filter(h=>hs[h.id].seen).length+"/"+Z.length+"</b> · Coverage: <b>"+Math.min(100,(d.wi/wp.length*100)|0)+"%</b></div><div style='margin-top:6px'>"+(t?"<b>Recommended first response:</b> send team to "+t.id+" ("+N[t.sev]+", "+p(t.cf)+" confidence) at "+gps(t.x,t.y)+". Avoid hazards marked on the map.":"<span class='mut'>Recommendations appear when people are detected.</span>")+"</div>"}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");
+if(b){const a=b.dataset.a,v=V.find(x=>x.id===b.dataset.i),h=Z.find(x=>x.id===b.dataset.i);
+if(a==="run"){if(!d.mode.startsWith("Landed")){run=!run;d.mode=run?"Searching":"Paused";b.textContent=run?"Pause":"Resume";lg(run?"Search started: autonomous lawn-mower pattern.":"Mission paused.")}}
+if(a==="rtb"){d.mode="Returning";run=true;$("#brun").textContent="Pause";lg("Return to base ordered by operator.")}
+if(a==="swap"){d.bat=100;d.mode="Ready";d.wi=Math.max(0,d.wi-1);lg("Battery swapped. Press Start search to continue where it stopped.")}
+if(a==="gps"){gpsX=!gpsX;lg(gpsX?"GPS lost: switched to visual odometry + LiDAR SLAM.":"GPS fix restored.")}
+if(a==="link"){linkX=!linkX;if(!linkX){lg("Link restored. Sending "+q.length+" queued alert(s).");q.splice(0).forEach(m=>{lg("📤 To Command Centre: "+m);lg("📤 To 112: "+m)});V.forEach(v=>{if(/queued/.test(vs[v.id].st))vs[v.id].st="Alert sent, awaiting confirmation"})}else lg("Link lost: drone continues autonomously and stores data.")}
+if(a==="rst")init();
+if(a==="ok"){const had=/sent|queued/.test(vs[v.id].st);if(!had)alertSend(v);vs[v.id].st="Confirmed by command centre: team dispatched";lg("✅ Command centre confirmed "+v.id+"; 112 notified")}
+if(a==="no"){vs[v.id].st="Cancelled: false alarm";lg("❌ "+v.id+" cancelled by operator; cancellation sent to 112")}
+if(a==="talk")lg("🔊 Victim speaker to "+v.id+": “Help is coming. Stay where you are.”");
+if(a==="drop"){if(kits){kits--;lg("📦 First-aid kit released near "+v.id)}else lg("No payload left on board")}
+if(a==="horn"){hs[h.id].horn=Date.now();lg("📢 Hazard horn: multilingual warning played near "+h.t+" ("+h.id+")");setTimeout(mk,4100)}
+all();head();return}
+const s=e.target.closest("[data-s],[data-h]");if(s){sel=s.dataset.s||s.dataset.h;all()}});
+$("#spd").onchange=e=>mult=+e.target.value;
+init();setInterval(step,100);setInterval(head,500);
+$("#pp").setAttribute("points",[B.x+","+B.y].concat(wp.map(w=>w.x+","+w.y)).join(" "));
+</script></body></html>
