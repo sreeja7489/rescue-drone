@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Search-and-Rescue Drone – Interactive 3D Model</title>
+<style>
+:root{--bg:#f3f5f8;--fg:#14202e;--card:#fff;--mut:#5a6b7d;--line:#d5dce5;--acc:#e8590c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e141b;--fg:#e6edf5;--card:#17212b;--mut:#9aabbd;--line:#2a3846;--acc:#ff8a3d}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:1fr 360px;height:100%}
+#stage{position:relative;min-height:0;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#hint{position:absolute;left:12px;top:12px;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+#chips{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap}
+#chips button{font:inherit;font-size:12px;padding:4px 9px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+#chips button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+aside{overflow:auto;padding:18px;border-left:1px solid var(--line);background:var(--card)}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:16px;margin:0 0 6px;color:var(--acc)}
+.mut{color:var(--mut);font-size:13px}.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-top:12px}
+details{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}summary{cursor:pointer;font-weight:600}
+li{margin:6px 0;font-size:13px}
+@media (max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:55% 45%}aside{border-left:0;border-top:1px solid var(--line)}#hint{display:none}}
+</style></head><body>
+<div id="app">
+<div id="stage"><canvas id="c"></canvas><div id="hint">Drag to rotate · scroll/pinch to zoom · click any part</div><div id="chips"></div></div>
+<aside>
+<h1>SAR-Hawk: AI Rescue Drone</h1>
+<div class="mut">Autonomous search-and-rescue quadcopter concept that finds people in disaster zones using thermal + visual fusion, fully on board.</div>
+<div id="info" style="margin-top:14px"><h2>Click a part</h2><div class="mut">Select any component on the drone to see what it is and which real-world SAR problem it addresses.</div></div>
+<details open><summary>Problems this design targets</summary><ul>
+<li><b>Needs trained pilots, slow manual analysis</b> → autonomous lawn-mower search plus on-board AI detection that flags people live.</li>
+<li><b>Cloud/GPU dependence</b> → edge AI computer runs the model offline.</li>
+<li><b>Weak thermal in vegetation, wet clothing, low contrast</b> → thermal + RGB + LiDAR fusion, not thermal alone.</li>
+<li><b>False positives/negatives</b> → multi-sensor confirmation, confidence scores, human verifies before dispatch.</li>
+<li><b>GPS-denied, obstacle-rich zones</b> → LiDAR + visual-inertial odometry + SLAM.</li>
+<li><b>Poor communications</b> → mesh radio relay; drone keeps working if the link drops.</li>
+<li><b>Battery, coordination, cost</b> → swappable battery, swarm-ready mesh, off-the-shelf parts.</li>
+<li><b>Beyond just “finding”</b> → builds a hazard map and ranked victim list for the commander.</li>
+<li><b>Slow escalation</b> → emergency alert module messages the command centre and 112 with GPS location and a snapshot.</li>
+<li><b>Bystanders unaware of danger</b> → amplified hazard horn warns the surroundings.</li>
+<li><b>Unverified detections</b> → command centre receives the alert and can confirm or cancel before teams are sent.</li>
+</ul></details>
+</div></aside></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const P={
+compute:{n:"Airframe + Edge AI Computer",d:"Carbon-fibre body housing the flight controller and a Jetson-class AI module that runs person-detection and sensor fusion on board.",s:"No cloud or stable link needed; analysis is automatic instead of manual and slow."},
+battery:{n:"Swappable Battery Pack",d:"High-density Li-ion pack mounted under the body, with a power-management board that triggers return-to-base at a safe reserve.",s:"Limited flight time: hot-swap on landing and auto-return keep the search going."},
+arms:{n:"Folding Carbon Arms",d:"Four lightweight arms that fold for transport and carry motors outward.",s:"Fast deployment by a non-expert team; easy field repair; lower cost."},
+motors:{n:"Brushless Motors",d:"Four efficient, weather-sealed brushless motors, with ESCs, driving the propellers.",s:"Reliable lift in wind, rain and dust at disaster sites."},
+props:{n:"Propellers",d:"Low-noise, folding rotor blades producing thrust and steering through speed differences.",s:"Stable hover for slow, careful scanning of debris and vegetation."},
+lidar:{n:"360° LiDAR Scanner",d:"Spinning laser rangefinder that builds a live 3D point-cloud of the surroundings.",s:"Obstacle avoidance and mapping in smoke, darkness and GPS-denied rubble; also helps see through gaps in vegetation."},
+gps:{n:"GPS / GNSS Module",d:"Multi-band satellite receiver on a raised mast, away from motor interference.",s:"Geotags each victim. When GPS fails, the drone switches to SLAM/visual odometry."},
+radio:{n:"Mesh Radio Antennas",d:"Dual antennas for a long-range mesh link to the command post and to other drones.",s:"Communication-poor zones: drones relay for each other; onboard autonomy continues if the link is lost."},
+gimbal:{n:"Stabilised Gimbal",d:"Three-axis gimbal that keeps both cameras steady and aimed while the drone moves.",s:"Sharp images in turbulence, so the AI gets fewer blurry frames and fewer misses."},
+thermal:{n:"Thermal Camera",d:"Long-wave infrared sensor that sees body heat, ideally radiometric and higher resolution.",s:"Finds warm bodies at night and in smoke. Fused with RGB because clothing, occlusion and ambient heat can fool it alone."},
+rgb:{n:"RGB / Zoom Camera",d:"High-resolution visible camera with optical zoom for confirmation.",s:"Cuts false positives: the AI cross-checks heat blobs against shape, colour and motion."},
+vio:{n:"Obstacle & Visual-Odometry Cameras",d:"Stereo camera pair on the front plus a down-facing optical-flow sensor.",s:"Tracks position without GPS and dodges wires, branches and debris."},
+speaker:{n:"Loudspeaker + Strobe",d:"Speaker and bright LED bar on the rear underside for two-way calls and signalling.",s:"Tells victims help is coming and lets rescuers be located; audio can also help detect responses."},
+payload:{n:"Drop Payload Bay",d:"Compartment carrying a small first-aid kit, water, radio or locator beacon, released over a victim.",s:"Supports survivors during the wait for responders, so discovery is followed by action."},
+comms:{n:"Emergency Alert Module + Command-Centre Link",d:"Cellular/satellite modem with stored emergency contacts. On a critical detection it automatically sends an alert message with GPS location, a snapshot and a confidence score to the command centre and to the 112 emergency number, and can place a call if needed.",s:"Slow escalation: help is requested within seconds with no operator needed. The command centre receives the same data, and a human can confirm or cancel to limit false alarms."},
+alert:{n:"Hazard Alert Horn + Amplifier",d:"Compact drone-mounted horn driven by an audio amplifier, playing siren tones and recorded multilingual warnings.",s:"Warns people nearby about a hazard (fire, collapse, gas) so they can move away. It is separate from the victim speaker, and is muted while the drone is listening for survivors."},
+
+legs:{n:"Landing Legs",d:"Shock-absorbing skids that keep sensors clear of the ground.",s:"Safe take-off and landing on rubble, mud and uneven ground."}};
+const stage=document.getElementById("stage"),cv=document.getElementById("c");
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new THREE.Scene(),C=new THREE.PerspectiveCamera(45,1,.1,100);
+S.add(new THREE.HemisphereLight(0xffffff,0x556677,.9));
+const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(5,9,6);S.add(dl);
+const dr=new THREE.Group();S.add(dr);const parts={};
+function M(c,o={}){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.5,metalness:.3},o))}
+function reg(id,m,pos,par){m.userData.id=id;if(pos)m.position.set(...pos);(par||dr).add(m);(parts[id]=parts[id]||[]).push(m);return m}
+const cy=(r,h,s=24)=>new THREE.CylinderGeometry(r,r,h,s);
+reg("compute",new THREE.Mesh(new THREE.BoxGeometry(2.2,.5,2.2),M(0x2b3440)),[0,0,0]);
+reg("compute",new THREE.Mesh(new THREE.BoxGeometry(1.4,.22,1.4),M(0x3d4a5a)),[0,.35,0]);
+reg("battery",new THREE.Mesh(new THREE.BoxGeometry(1.5,.35,1.1),M(0xf2b01e)),[0,-.42,0]);
+for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2,g=new THREE.Group();g.rotation.y=-a;dr.add(g);
+const arm=reg("arms",new THREE.Mesh(cy(.08,3),M(0x1c232c)),[1.5,0,0],g);arm.rotation.z=Math.PI/2;
+reg("motors",new THREE.Mesh(cy(.22,.3),M(0x8a96a3)),[3,.1,0],g);
+const pg=new THREE.Group();pg.position.set(3,.4,0);g.add(pg);pg.userData.spin=i%2?1:-1;
+for(const r of[0,Math.PI/2]){const b=reg("props",new THREE.Mesh(new THREE.BoxGeometry(2.2,.03,.14),M(0x111111)),null,pg);b.rotation.y=r}
+const leg=reg("legs",new THREE.Mesh(cy(.05,.9),M(0x444c56)),[1.1,-.85,0],g);leg.rotation.z=.3;
+const foot=reg("legs",new THREE.Mesh(cy(.07,.5),M(0x444c56)),[1.35,-1.25,0],g);foot.rotation.x=Math.PI/2;}
+const lid=reg("lidar",new THREE.Group(),[0,.85,0]);
+reg("lidar",new THREE.Mesh(cy(.32,.38),M(0x0f1418)),[0,0,0],lid);reg("lidar",new THREE.Mesh(cy(.34,.06),M(0x2ecc71,{emissive:0x0a3a1c})),[0,.08,0],lid);
+reg("gps",new THREE.Mesh(cy(.04,.7),M(0x666e78)),[-.6,.8,-.6]);reg("gps",new THREE.Mesh(cy(.28,.08),M(0xdde3ea)),[-.6,1.2,-.6]);
+for(const x of[-.35,.35]){const a=reg("radio",new THREE.Mesh(cy(.03,1.2),M(0x222)),[x,.95,.7]);a.rotation.z=x>0?-.25:.25;reg("radio",new THREE.Mesh(new THREE.SphereGeometry(.06),M(0xe8590c)),[x+(x>0?.15:-.15),1.55,.7])}
+const gb=reg("gimbal",new THREE.Mesh(new THREE.SphereGeometry(.45,24,16),M(0x3b4654)),[0,-.85,1.0]);
+const th=reg("thermal",new THREE.Mesh(cy(.14,.3),M(0xd0361f,{emissive:0x5a0f06})),[-.2,-.85,1.45]);th.rotation.x=Math.PI/2;
+const rg=reg("rgb",new THREE.Mesh(cy(.14,.3),M(0x1f6fd0,{emissive:0x0a2a5a})),[.2,-.85,1.45]);rg.rotation.x=Math.PI/2;
+for(const x of[-.6,.6]){const c=reg("vio",new THREE.Mesh(new THREE.BoxGeometry(.3,.2,.2),M(0x0f1418,{emissive:0x14323a})),[x,.05,1.12])}
+reg("vio",new THREE.Mesh(cy(.12,.1),M(0x0f1418,{emissive:0x14323a})),[0,-.7,-.75]);
+reg("speaker",new THREE.Mesh(new THREE.BoxGeometry(1.0,.2,.3),M(0x2a2f36)),[0,-.4,-1.0]);
+reg("speaker",new THREE.Mesh(new THREE.BoxGeometry(.6,.08,.1),M(0xffe14d,{emissive:0xb38f00})),[0,-.52,-1.15]);
+reg("payload",new THREE.Mesh(new THREE.BoxGeometry(.8,.4,.8),M(0xe8590c)),[0,-.8,-.35]);
+reg("comms",new THREE.Mesh(new THREE.BoxGeometry(.5,.25,.4),M(0xc0392b,{emissive:0x4a0f0a})),[.7,.5,-.7]);
+reg("comms",new THREE.Mesh(cy(.025,.6),M(0x222)),[.85,.95,-.7]);
+const hn=reg("alert",new THREE.Mesh(new THREE.CylinderGeometry(.4,.12,.55,24),M(0xf1c40f,{emissive:0x5a4500})),[-1.45,.15,0]);hn.rotation.z=Math.PI/2;
+reg("alert",new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.4),M(0x2a2f36)),[-1.1,.4,0]);
+reg("comms",new THREE.Mesh(cy(.3,.12),M(0xc0392b,{emissive:0x4a0f0a})),[1.3,.1,0]);
+const rg2=reg("comms",new THREE.Mesh(new THREE.TorusGeometry(.38,.03,8,32),M(0xff6b5a,{emissive:0x7a1f14})),[1.3,.1,0]);rg2.rotation.x=Math.PI/2;
+reg("comms",new THREE.Mesh(cy(.03,.5),M(0x222)),[1.3,.45,0]);
+dr.position.y=.3;
+const chips=document.getElementById("chips"),info=document.getElementById("info");let sel=null;
+function select(id){sel=id;for(const k in parts)parts[k].forEach(m=>{if(m.material){if(!m.userData.e0)m.userData.e0=m.material.emissive.getHex();m.material.emissive.setHex(k===id?0x888800:m.userData.e0)}
+m.children&&0});
+dr.traverse(o=>{if(o.isMesh&&o.userData.id){o.material.emissive.setHex(o.userData.id===id?0x886600:(o.userData.e0||0))}});
+const p=P[id];info.innerHTML="<h2>"+p.n+"</h2><div>"+p.d+"</div><div class='lbl'>Problem it helps solve</div><div>"+p.s+"</div>";
+[...chips.children].forEach(b=>b.classList.toggle("on",b.dataset.id===id))}
+for(const id in P){const b=document.createElement("button");b.textContent=P[id].n.split(" ")[0]==="Airframe"?"Compute":P[id].n.replace(/ \+.*|\/.*/,"");b.dataset.id=id;b.onclick=()=>select(id);chips.appendChild(b)}
+const rc=new THREE.Raycaster(),mv=new THREE.Vector2();
+function pick(e){const r=cv.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);rc.setFromCamera(mv,C);
+const h=rc.intersectObjects(dr.children,true);for(const x of h){let o=x.object;while(o&&!o.userData.id)o=o.parent;if(o){select(o.userData.id);return}}}
+let th_=.8,ph=1.1,rad=13,drag=false,sx=0,sy=0,moved=0,idle=true;
+const pts={};let pd=0;
+cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts[e.pointerId]=e;drag=true;sx=e.clientX;sy=e.clientY;moved=0;idle=false;if(Object.keys(pts).length==2)pd=0});
+cv.addEventListener("pointermove",e=>{if(!pts[e.pointerId])return;const ks=Object.keys(pts);
+if(ks.length==2){const a=pts[ks[0]],b=pts[ks[1]];const od=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);pts[e.pointerId]=e;const n=Math.hypot(pts[ks[0]].clientX-pts[ks[1]].clientX,pts[ks[0]].clientY-pts[ks[1]].clientY);rad=Math.min(25,Math.max(6,rad*od/n));moved=99;return}
+pts[e.pointerId]=e;if(!drag)return;const dx=e.clientX-sx,dy=e.clientY-sy;moved+=Math.abs(dx)+Math.abs(dy);th_-=dx*.008;ph=Math.min(2.6,Math.max(.2,ph-dy*.008));sx=e.clientX;sy=e.clientY});
+cv.addEventListener("pointerup",e=>{delete pts[e.pointerId];drag=false;if(moved<6)pick(e)});
+cv.addEventListener("pointercancel",e=>{delete pts[e.pointerId];drag=false});
+cv.addEventListener("wheel",e=>{e.preventDefault();rad=Math.min(25,Math.max(6,rad*(1+e.deltaY*.001)))},{passive:false});
+function size(){const w=stage.clientWidth,h=stage.clientHeight;R.setSize(w,h,false);C.aspect=w/h;C.updateProjectionMatrix()}
+addEventListener("resize",size);size();
+function loop(){requestAnimationFrame(loop);if(idle)th_+=.004;
+C.position.set(rad*Math.sin(ph)*Math.sin(th_),rad*Math.cos(ph),rad*Math.sin(ph)*Math.cos(th_));C.lookAt(0,-.2,0);
+dr.traverse(o=>{if(o.userData.spin)o.rotation.y+=o.userData.spin*.5});lid.rotation.y+=.08;
+R.render(S,C)}
+loop();
+</script></body></html>
